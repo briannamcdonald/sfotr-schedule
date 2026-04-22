@@ -84,11 +84,91 @@ const SCHEDULE = [
   },
   {
     day: "Friday",
+    title: "Writing Historical Military Fantasy",
+    location: "X-Mansion",
+    start: "2:00 PM",
+    end: "2:50 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Local Game Testing- Black Friday Bakery",
+    location: "Excelsior Gaming - Table B",
+    start: "2:00 PM",
+    end: "6:00 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Sometimes the Void Looks Back",
+    location: "The Upper Deck",
+    start: "2:00 PM",
+    end: "7:00 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Character Meet & Greets - Magical Friends",
+    location: "Main Lobby",
+    start: "2:00 PM",
+    end: "2:45 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Filmmaking in Newfoundland: No Budget to Netflix",
+    location: "X-Mansion",
+    start: "3:00 PM",
+    end: "3:50 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Beginning Cosplay for kids",
+    location: "Tardis",
+    start: "3:00 PM",
+    end: "3:50 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Learn to Play Dungeons and Dragons",
+    location: "Batcave",
+    start: "3:00 PM",
+    end: "3:50 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Character Meet & Greets - Wicked",
+    location: "Main Lobby",
+    start: "3:00 PM",
+    end: "3:45 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
     title: "A Story's Sacred Contract: Readers, Writers, and Expectations",
     location: "Tardis",
     start: "4:00 PM",
     end: "4:50 PM",
     importance: "optional",
+  },
+  {
+    day: "Friday",
+    title: "Learn to Play Dungeons and Dragons",
+    location: "Batcave",
+    start: "4:00 PM",
+    end: "4:50 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "KARAOKE - ALL AGES",
+    location: "Tardis",
+    start: "8:00 PM",
+    end: "12:00 AM",
+    importance: "happening",
   },
   {
     day: "Saturday",
@@ -252,6 +332,13 @@ function normalizeEventRange(start, end) {
 function sortEventsByTime(a, b) {
   if (a.startMinutes !== b.startMinutes) {
     return a.startMinutes - b.startMinutes;
+  }
+
+  const aPriority = IMPORTANCE_ORDER[a.importance] ?? Number.MAX_SAFE_INTEGER;
+  const bPriority = IMPORTANCE_ORDER[b.importance] ?? Number.MAX_SAFE_INTEGER;
+
+  if (aPriority !== bPriority) {
+    return aPriority - bPriority;
   }
 
   return a.endMinutes - b.endMinutes;
@@ -599,7 +686,7 @@ function App() {
                           }}
                           onClick={() => setOpenGroupId(hiddenGroup.id)}
                         >
-                          +{hiddenGroup.hiddenCount} more
+                          +{hiddenGroup.hiddenCount}
                         </button>
                       ))}
                     </div>
