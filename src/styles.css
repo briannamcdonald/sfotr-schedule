@@ -445,6 +445,8 @@ button {
 }
 
 .events-modal {
+  display: flex;
+  flex-direction: column;
   width: min(640px, 100%);
   max-height: min(80vh, 720px);
   overflow: hidden;
@@ -489,6 +491,8 @@ button {
 }
 
 .modal-event-list {
+  flex: 1;
+  min-height: 0;
   display: grid;
   gap: 12px;
   padding: 18px 22px 22px;

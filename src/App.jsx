@@ -20,11 +20,59 @@ const SCHEDULE = [
   },
   {
     day: "Friday",
+    title: "Character Meet & Greets - Mystery Gang",
+    location: "Main lobby",
+    start: "12:00 PM",
+    end: "12:45 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
     title: "Friendship Bracelet Making",
     location: "Batcave",
     start: "1:00 PM",
     end: "1:50 PM",
     importance: "must-do",
+  },
+  {
+    day: "Friday",
+    title: "Compare and Contrast Yourself with Fictional Characters!",
+    location: "X-mansion",
+    start: "1:00 PM",
+    end: "1:50 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Appreciating 2nd to early 3rd gen kpop",
+    location: "Tardis",
+    start: "1:00 PM",
+    end: "1:50 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "KINGDOMS TCG - Learn to play",
+    location: "Excelsior Gaming - Table A",
+    start: "1:00 PM",
+    end: "5:00 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Werewolf RPG",
+    location: "The Upper Deck",
+    start: "1:00 PM",
+    end: "2:00 PM",
+    importance: "happening",
+  },
+  {
+    day: "Friday",
+    title: "Character Meet & Greets - Superheroes",
+    location: "Main Lobby",
+    start: "1:00 PM",
+    end: "1:45 PM",
+    importance: "happening",
   },
   {
     day: "Friday",
@@ -255,6 +303,30 @@ function splitOverlapGroups(events) {
   return groups;
 }
 
+function splitStartTimeGroups(events) {
+  const groups = [];
+  let currentGroup = [];
+  let currentStartMinutes = null;
+
+  for (const event of events) {
+    if (currentStartMinutes === null || event.startMinutes === currentStartMinutes) {
+      currentGroup.push(event);
+      currentStartMinutes = event.startMinutes;
+      continue;
+    }
+
+    groups.push(currentGroup);
+    currentGroup = [event];
+    currentStartMinutes = event.startMinutes;
+  }
+
+  if (currentGroup.length) {
+    groups.push(currentGroup);
+  }
+
+  return groups;
+}
+
 function layoutEvents(events) {
   const active = [];
   const placed = [];
@@ -291,18 +363,55 @@ function layoutEvents(events) {
 
 function buildTimelineGroups(day, filters) {
   return splitOverlapGroups(enrichEvents(day, filters)).map((events, index) => {
-    const { maxColumns } = layoutEvents(events);
-    const visibleSourceEvents =
-      maxColumns > 2
-        ? events.slice().sort(sortEventsByDisplayPriority).slice(0, 2).sort(sortEventsByTime)
-        : events;
-    const { events: visibleEvents } = layoutEvents(visibleSourceEvents);
+    const visibleEventIds = new Set();
+    const hiddenGroups = splitStartTimeGroups(events).flatMap((startGroup, startIndex) => {
+      const visiblePlannedEvents = startGroup.filter(
+        (event) => event.importance !== "happening",
+      );
+      const visibleHappeningEvents =
+        visiblePlannedEvents.length >= 2
+          ? []
+          : startGroup
+              .filter((event) => event.importance === "happening")
+              .slice(0, Math.max(0, 2 - visiblePlannedEvents.length));
+
+      [...visiblePlannedEvents, ...visibleHappeningEvents].forEach((event) => {
+        visibleEventIds.add(event.id);
+      });
+
+      const hiddenHappeningEvents = startGroup.filter(
+        (event) =>
+          event.importance === "happening" && !visibleEventIds.has(event.id),
+      );
+
+      if (!hiddenHappeningEvents.length) {
+        return [];
+      }
+
+      return [
+        {
+          id: `${day}-group-${index}-start-${startIndex}`,
+          startMinutes: startGroup[0].startMinutes,
+          endMinutes: startGroup.reduce(
+            (latestEnd, event) => Math.max(latestEnd, event.endMinutes),
+            startGroup[0].endMinutes,
+          ),
+          events: startGroup.slice().sort(sortEventsByDisplayPriority),
+          hiddenCount: hiddenHappeningEvents.length,
+        },
+      ];
+    });
+
+    const visibleSourceEvents = events.filter((event) => visibleEventIds.has(event.id));
+    const layoutSourceEvents = visibleSourceEvents.length ? visibleSourceEvents : events;
+    const { maxColumns } = layoutEvents(layoutSourceEvents);
+    const { events: visibleEvents } = layoutEvents(layoutSourceEvents);
 
     return {
       id: `${day}-group-${index}`,
       events,
       visibleEvents,
-      hiddenCount: events.length - visibleEvents.length,
+      hiddenGroups,
       maxColumns,
       startMinutes: events[0].startMinutes,
       endMinutes: events.reduce(
@@ -355,7 +464,10 @@ function App() {
     );
   }
 
-  const openGroup = timeline.groups.find((group) => group.id === openGroupId) ?? null;
+  const openGroup =
+    timeline.groups
+      .flatMap((group) => group.hiddenGroups)
+      .find((group) => group.id === openGroupId) ?? null;
 
   const timeSlots = [];
   for (let minute = timeline.earliest; minute <= timeline.latest; minute += 30) {
@@ -438,9 +550,6 @@ function App() {
                 ))}
 
                 {timeline.groups.map((group) => {
-                  const indicatorTop =
-                    (group.startMinutes - timeline.earliest) * PIXELS_PER_MINUTE + 8;
-
                   return (
                     <div key={group.id}>
                       {group.visibleEvents.map((event) => {
@@ -477,16 +586,22 @@ function App() {
                         );
                       })}
 
-                      {group.hiddenCount > 0 ? (
+                      {group.hiddenGroups.map((hiddenGroup) => (
                         <button
+                          key={hiddenGroup.id}
                           type="button"
                           className="more-events-button"
-                          style={{ top: indicatorTop }}
-                          onClick={() => setOpenGroupId(group.id)}
+                          style={{
+                            top:
+                              (hiddenGroup.startMinutes - timeline.earliest) *
+                                PIXELS_PER_MINUTE +
+                              8,
+                          }}
+                          onClick={() => setOpenGroupId(hiddenGroup.id)}
                         >
-                          +{group.hiddenCount} more
+                          +{hiddenGroup.hiddenCount} more
                         </button>
-                      ) : null}
+                      ))}
                     </div>
                   );
                 })}
@@ -511,10 +626,8 @@ function App() {
           >
             <div className="events-modal-header">
               <div>
-                <p className="events-modal-kicker">{activeDay} overlap group</p>
-                <h2 id="events-modal-title">
-                  {formatMinutes(openGroup.startMinutes)} - {formatMinutes(openGroup.endMinutes)}
-                </h2>
+                <p className="events-modal-kicker">{activeDay}</p>
+                <h2 id="events-modal-title">Starts at {formatMinutes(openGroup.startMinutes)}</h2>
               </div>
 
               <button
