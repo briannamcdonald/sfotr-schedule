@@ -220,8 +220,9 @@ function sortEventsByDisplayPriority(a, b) {
   return sortEventsByTime(a, b);
 }
 
-function enrichEvents(day) {
+function enrichEvents(day, { showHappening }) {
   return SCHEDULE.filter((event) => event.day === day)
+    .filter((event) => showHappening || event.importance !== "happening")
     .map((event, index) => ({
       ...event,
       id: `${day}-${index}`,
@@ -288,8 +289,8 @@ function layoutEvents(events) {
   };
 }
 
-function buildTimelineGroups(day) {
-  return splitOverlapGroups(enrichEvents(day)).map((events, index) => {
+function buildTimelineGroups(day, filters) {
+  return splitOverlapGroups(enrichEvents(day, filters)).map((events, index) => {
     const { maxColumns } = layoutEvents(events);
     const visibleSourceEvents =
       maxColumns > 2
@@ -312,8 +313,8 @@ function buildTimelineGroups(day) {
   });
 }
 
-function getDayTimeline(day) {
-  const groups = buildTimelineGroups(day);
+function getDayTimeline(day, filters) {
+  const groups = buildTimelineGroups(day, filters);
   const events = groups.flatMap((group) => group.events);
 
   if (!events.length) {
@@ -338,10 +339,20 @@ function getDayTimeline(day) {
 function App() {
   const [activeDay, setActiveDay] = useState(DAYS[0]);
   const [openGroupId, setOpenGroupId] = useState(null);
-  const timeline = getDayTimeline(activeDay);
+  const [showHappening, setShowHappening] = useState(true);
+  const timeline = getDayTimeline(activeDay, { showHappening });
 
   if (!timeline) {
-    return <main className="app-shell">No schedule entries found.</main>;
+    return (
+      <main className="app-shell">
+        <section className="planner-card">
+          <header className="planner-header">
+            <h1>SFOTR Schedule 2026</h1>
+          </header>
+          <p className="empty-state-copy">No schedule entries match the current filters.</p>
+        </section>
+      </main>
+    );
   }
 
   const openGroup = timeline.groups.find((group) => group.id === openGroupId) ?? null;
@@ -369,7 +380,10 @@ function App() {
               role="tab"
               aria-selected={activeDay === day}
               className={`day-tab ${activeDay === day ? "is-active" : ""}`}
-              onClick={() => setActiveDay(day)}
+              onClick={() => {
+                setActiveDay(day);
+                setOpenGroupId(null);
+              }}
             >
               {day}
             </button>
@@ -377,17 +391,21 @@ function App() {
         </div>
 
         <div className="planner-meta">
-          <div className="timeline-summary">
-            <span className="summary-label">{activeDay}</span>
-            <strong>
-              {formatMinutes(timeline.earliest)} - {formatMinutes(timeline.latest)}
-            </strong>
-          </div>
-
           <div className="legend" aria-label="Event importance legend">
             <span className="legend-chip legend-must">Must-do</span>
             <span className="legend-chip legend-optional">Optional</span>
             <span className="legend-chip legend-happening">Happening</span>
+            <label className="legend-checkbox">
+              <input
+                type="checkbox"
+                checked={showHappening}
+                onChange={(event) => {
+                  setShowHappening(event.target.checked);
+                  setOpenGroupId(null);
+                }}
+              />
+              <span>Show happening</span>
+            </label>
           </div>
         </div>
 

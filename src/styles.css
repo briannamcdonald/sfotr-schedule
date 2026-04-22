@@ -169,28 +169,10 @@ button {
 .planner-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 14px;
   flex-wrap: wrap;
   margin-bottom: 14px;
-}
-
-.timeline-summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-soft);
-  font-size: 0.93rem;
-}
-
-.summary-label {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 12px;
-  border-radius: 999px;
-  color: #8c6073;
-  background: rgba(255, 238, 244, 0.9);
-  font-weight: 700;
 }
 
 .legend {
@@ -208,6 +190,31 @@ button {
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.legend-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(205, 192, 199, 0.84);
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: #6f5b68;
+  background: rgba(255, 255, 255, 0.98);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.legend-checkbox input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #c77397;
+}
+
+.legend-checkbox span {
+  line-height: 1;
 }
 
 .legend-must {
@@ -230,6 +237,12 @@ button {
 
 .timeline-panel {
   background: transparent;
+}
+
+.empty-state-copy {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.96rem;
 }
 
 .timeline-scroll {
