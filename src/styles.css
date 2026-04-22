@@ -25,6 +25,9 @@
   --optional-bg: linear-gradient(180deg, #f8fbff 0%, #e8f2ff 100%);
   --optional-border: #a6c8f3;
   --optional-accent: #5c88c5;
+  --happening-bg: rgba(255, 255, 255, 0.96);
+  --happening-border: rgba(197, 184, 191, 0.9);
+  --happening-text: #6f5b68;
 }
 
 * {
@@ -219,6 +222,12 @@ button {
   border-color: rgba(157, 195, 235, 0.78);
 }
 
+.legend-happening {
+  color: var(--happening-text);
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(205, 192, 199, 0.84);
+}
+
 .timeline-panel {
   background: transparent;
 }
@@ -296,6 +305,12 @@ button {
   background: var(--optional-bg);
 }
 
+.event-card.happening .event-card-inner {
+  border-color: var(--happening-border);
+  background: var(--happening-bg);
+  box-shadow: 0 10px 22px rgba(166, 149, 159, 0.12);
+}
+
 .event-card.must-do .event-card-inner::before,
 .event-card.optional .event-card-inner::before {
   position: absolute;
@@ -313,6 +328,26 @@ button {
 
 .event-card.optional .event-card-inner::before {
   background: linear-gradient(180deg, #93c0ef 0%, #5d89c5 100%);
+}
+
+.more-events-button {
+  position: absolute;
+  right: 8px;
+  z-index: 2;
+  border: 1px solid rgba(146, 125, 136, 0.24);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #6f5462;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 22px rgba(140, 116, 128, 0.16);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.more-events-button:hover {
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .event-card h2 {
@@ -384,6 +419,111 @@ button {
   line-height: 1.1;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 14px;
+  background: rgba(74, 56, 67, 0.42);
+  backdrop-filter: blur(6px);
+}
+
+.events-modal {
+  width: min(640px, 100%);
+  max-height: min(80vh, 720px);
+  overflow: hidden;
+  border: 1px solid rgba(215, 189, 201, 0.7);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 251, 252, 0.98) 0%, rgba(255, 245, 240, 0.98) 100%);
+  box-shadow: 0 28px 60px rgba(88, 66, 78, 0.22);
+}
+
+.events-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid rgba(222, 199, 209, 0.58);
+}
+
+.events-modal-header h2 {
+  margin: 4px 0 0;
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.events-modal-kicker {
+  margin: 0;
+  color: #9a7284;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-close-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: #734f60;
+  background: rgba(255, 237, 244, 0.95);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.modal-event-list {
+  display: grid;
+  gap: 12px;
+  padding: 18px 22px 22px;
+  overflow-y: auto;
+}
+
+.modal-event-card {
+  border: 1px solid transparent;
+  border-radius: 20px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.modal-event-card.must-do {
+  border-color: rgba(225, 141, 177, 0.9);
+  background: var(--must-bg);
+}
+
+.modal-event-card.optional {
+  border-color: rgba(153, 192, 233, 0.9);
+  background: var(--optional-bg);
+}
+
+.modal-event-card.happening {
+  border-color: var(--happening-border);
+  background: var(--happening-bg);
+}
+
+.modal-event-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.modal-event-copy h3,
+.modal-event-copy p {
+  margin: 0;
+}
+
+.modal-event-copy h3 {
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.modal-event-copy p {
+  color: var(--text-soft);
+  font-size: 0.84rem;
+}
+
 @media (min-width: 700px) {
   .app-shell {
     padding: 28px 18px 36px;
@@ -404,5 +544,9 @@ button {
 
   .event-card h2 {
     font-size: 0.95rem;
+  }
+
+  .modal-backdrop {
+    padding: 28px 18px;
   }
 }

@@ -2,10 +2,22 @@ import { useState } from "react";
 
 const DAYS = ["Friday", "Saturday", "Sunday"];
 const PIXELS_PER_MINUTE = 2.1;
-
+const IMPORTANCE_ORDER = {
+  "must-do": 0,
+  optional: 1,
+  happening: 2,
+};
 // Edit this array to update your convention schedule.
 // Each item needs: day, title, location, start, end, and importance.
 const SCHEDULE = [
+  {
+    day: "Saturday",
+    title: "Card Crafting",
+    location: "Tardis",
+    start: "10:00 AM",
+    end: "10:50 AM",
+    importance: "happening",
+  },
   {
     day: "Friday",
     title: "Friendship Bracelet Making",
@@ -189,6 +201,25 @@ function normalizeEventRange(start, end) {
   return { startMinutes, endMinutes };
 }
 
+function sortEventsByTime(a, b) {
+  if (a.startMinutes !== b.startMinutes) {
+    return a.startMinutes - b.startMinutes;
+  }
+
+  return a.endMinutes - b.endMinutes;
+}
+
+function sortEventsByDisplayPriority(a, b) {
+  const aPriority = IMPORTANCE_ORDER[a.importance] ?? Number.MAX_SAFE_INTEGER;
+  const bPriority = IMPORTANCE_ORDER[b.importance] ?? Number.MAX_SAFE_INTEGER;
+
+  if (aPriority !== bPriority) {
+    return aPriority - bPriority;
+  }
+
+  return sortEventsByTime(a, b);
+}
+
 function enrichEvents(day) {
   return SCHEDULE.filter((event) => event.day === day)
     .map((event, index) => ({
@@ -196,16 +227,10 @@ function enrichEvents(day) {
       id: `${day}-${index}`,
       ...normalizeEventRange(event.start, event.end),
     }))
-    .sort((a, b) => {
-      if (a.startMinutes !== b.startMinutes) {
-        return a.startMinutes - b.startMinutes;
-      }
-
-      return a.endMinutes - b.endMinutes;
-    });
+    .sort(sortEventsByTime);
 }
 
-function buildColumns(events) {
+function splitOverlapGroups(events) {
   const groups = [];
   let currentGroup = [];
   let currentGroupEnd = -1;
@@ -226,40 +251,70 @@ function buildColumns(events) {
     groups.push(currentGroup);
   }
 
-  return groups.flatMap((group) => {
-    const active = [];
-    const placed = [];
-    let maxColumns = 1;
+  return groups;
+}
 
-    for (const event of group) {
-      for (let index = active.length - 1; index >= 0; index -= 1) {
-        if (active[index].endMinutes <= event.startMinutes) {
-          active.splice(index, 1);
-        }
+function layoutEvents(events) {
+  const active = [];
+  const placed = [];
+  let maxColumns = 1;
+
+  for (const event of events) {
+    for (let index = active.length - 1; index >= 0; index -= 1) {
+      if (active[index].endMinutes <= event.startMinutes) {
+        active.splice(index, 1);
       }
-
-      let column = 0;
-      const usedColumns = new Set(active.map((item) => item.column));
-
-      while (usedColumns.has(column)) {
-        column += 1;
-      }
-
-      const positionedEvent = { ...event, column };
-      active.push(positionedEvent);
-      placed.push(positionedEvent);
-      maxColumns = Math.max(maxColumns, active.length);
     }
 
-    return placed.map((event) => ({
+    let column = 0;
+    const usedColumns = new Set(active.map((item) => item.column));
+
+    while (usedColumns.has(column)) {
+      column += 1;
+    }
+
+    const positionedEvent = { ...event, column };
+    active.push(positionedEvent);
+    placed.push(positionedEvent);
+    maxColumns = Math.max(maxColumns, active.length);
+  }
+
+  return {
+    events: placed.map((event) => ({
       ...event,
       totalColumns: maxColumns,
-    }));
+    })),
+    maxColumns,
+  };
+}
+
+function buildTimelineGroups(day) {
+  return splitOverlapGroups(enrichEvents(day)).map((events, index) => {
+    const { maxColumns } = layoutEvents(events);
+    const visibleSourceEvents =
+      maxColumns > 2
+        ? events.slice().sort(sortEventsByDisplayPriority).slice(0, 2).sort(sortEventsByTime)
+        : events;
+    const { events: visibleEvents } = layoutEvents(visibleSourceEvents);
+
+    return {
+      id: `${day}-group-${index}`,
+      events,
+      visibleEvents,
+      hiddenCount: events.length - visibleEvents.length,
+      maxColumns,
+      startMinutes: events[0].startMinutes,
+      endMinutes: events.reduce(
+        (latestEnd, event) => Math.max(latestEnd, event.endMinutes),
+        events[0].endMinutes,
+      ),
+    };
   });
 }
 
 function getDayTimeline(day) {
-  const events = buildColumns(enrichEvents(day));
+  const groups = buildTimelineGroups(day);
+  const events = groups.flatMap((group) => group.events);
 
   if (!events.length) {
     return null;
@@ -272,6 +327,7 @@ function getDayTimeline(day) {
 
   return {
     day,
+    groups,
     events,
     earliest,
     latest,
@@ -281,11 +337,14 @@ function getDayTimeline(day) {
 
 function App() {
   const [activeDay, setActiveDay] = useState(DAYS[0]);
+  const [openGroupId, setOpenGroupId] = useState(null);
   const timeline = getDayTimeline(activeDay);
 
   if (!timeline) {
     return <main className="app-shell">No schedule entries found.</main>;
   }
+
+  const openGroup = timeline.groups.find((group) => group.id === openGroupId) ?? null;
 
   const timeSlots = [];
   for (let minute = timeline.earliest; minute <= timeline.latest; minute += 30) {
@@ -328,6 +387,7 @@ function App() {
           <div className="legend" aria-label="Event importance legend">
             <span className="legend-chip legend-must">Must-do</span>
             <span className="legend-chip legend-optional">Optional</span>
+            <span className="legend-chip legend-happening">Happening</span>
           </div>
         </div>
 
@@ -359,36 +419,57 @@ function App() {
                   />
                 ))}
 
-                {timeline.events.map((event) => {
-                  const top = (event.startMinutes - timeline.earliest) * PIXELS_PER_MINUTE;
-                  const height =
-                    (event.endMinutes - event.startMinutes) * PIXELS_PER_MINUTE;
-                  const isOverlap = event.totalColumns > 1;
-                  const isCompact = event.endMinutes - event.startMinutes <= 60;
-                  const gutter = isOverlap ? 2 : 8;
-                  const width = `calc(${100 / event.totalColumns}% - ${gutter}px)`;
-                  const left = `calc(${(100 / event.totalColumns) * event.column}% + ${
-                    gutter / 2
-                  }px)`;
+                {timeline.groups.map((group) => {
+                  const indicatorTop =
+                    (group.startMinutes - timeline.earliest) * PIXELS_PER_MINUTE + 8;
 
                   return (
-                    <article
-                      key={event.id}
-                      className={`event-card ${event.importance} ${
-                        isCompact ? "is-compact" : ""
-                      } ${isOverlap ? "is-overlap" : ""}`}
-                      style={{ top, height, width, left }}
-                    >
-                      <div className="event-card-inner">
-                        <h2>{event.title}</h2>
-                        <div className="event-meta">
-                          <p className="event-time">
-                            {event.start} - {event.end}
-                          </p>
-                          <p className="event-location">{event.location}</p>
-                        </div>
-                      </div>
-                    </article>
+                    <div key={group.id}>
+                      {group.visibleEvents.map((event) => {
+                        const top =
+                          (event.startMinutes - timeline.earliest) * PIXELS_PER_MINUTE;
+                        const height =
+                          (event.endMinutes - event.startMinutes) * PIXELS_PER_MINUTE;
+                        const isOverlap = event.totalColumns > 1;
+                        const isCompact = event.endMinutes - event.startMinutes <= 60;
+                        const gutter = isOverlap ? 2 : 8;
+                        const width = `calc(${100 / event.totalColumns}% - ${gutter}px)`;
+                        const left = `calc(${(100 / event.totalColumns) * event.column}% + ${
+                          gutter / 2
+                        }px)`;
+
+                        return (
+                          <article
+                            key={event.id}
+                            className={`event-card ${event.importance} ${
+                              isCompact ? "is-compact" : ""
+                            } ${isOverlap ? "is-overlap" : ""}`}
+                            style={{ top, height, width, left }}
+                          >
+                            <div className="event-card-inner">
+                              <h2>{event.title}</h2>
+                              <div className="event-meta">
+                                <p className="event-time">
+                                  {event.start} - {event.end}
+                                </p>
+                                <p className="event-location">{event.location}</p>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
+
+                      {group.hiddenCount > 0 ? (
+                        <button
+                          type="button"
+                          className="more-events-button"
+                          style={{ top: indicatorTop }}
+                          onClick={() => setOpenGroupId(group.id)}
+                        >
+                          +{group.hiddenCount} more
+                        </button>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
@@ -396,6 +477,54 @@ function App() {
           </div>
         </section>
       </section>
+
+      {openGroup ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => setOpenGroupId(null)}
+        >
+          <section
+            className="events-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="events-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="events-modal-header">
+              <div>
+                <p className="events-modal-kicker">{activeDay} overlap group</p>
+                <h2 id="events-modal-title">
+                  {formatMinutes(openGroup.startMinutes)} - {formatMinutes(openGroup.endMinutes)}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close-button"
+                onClick={() => setOpenGroupId(null)}
+                aria-label="Close event list"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="modal-event-list">
+              {openGroup.events.slice().sort(sortEventsByDisplayPriority).map((event) => (
+                <article key={event.id} className={`modal-event-card ${event.importance}`}>
+                  <div className="modal-event-copy">
+                    <h3>{event.title}</h3>
+                    <p>
+                      {event.start} - {event.end}
+                    </p>
+                    <p>{event.location}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
