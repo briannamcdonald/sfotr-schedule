@@ -120,7 +120,7 @@ const SCHEDULE = [
     location: "X-Mansion",
     start: "3:00 PM",
     end: "3:50 PM",
-    importance: "happening",
+    importance: "optional",
   },
   {
     day: "Friday",
@@ -152,7 +152,7 @@ const SCHEDULE = [
     location: "Tardis",
     start: "2:00 PM",
     end: "2:50 PM",
-    importance: "optional",
+    importance: "happening",
   },
   {
     day: "Friday",
@@ -288,7 +288,7 @@ const SCHEDULE = [
     location: "X-Mansion",
     start: "1:00 PM",
     end: "1:50 PM",
-    importance: "happening",
+    importance: "optional",
   },
   {
     day: "Saturday",
@@ -304,7 +304,7 @@ const SCHEDULE = [
     location: "Tardis",
     start: "2:00 PM",
     end: "2:50 PM",
-    importance: "optional",
+    importance: "must-do",
   },
   {
     day: "Saturday",
@@ -576,7 +576,7 @@ const SCHEDULE = [
     location: "X-Mansion",
     start: "1:00 PM",
     end: "1:50 PM",
-    importance: "happening",
+    importance: "optional",
   },
   {
     day: "Sunday",
@@ -632,7 +632,7 @@ const SCHEDULE = [
     location: "Batcave",
     start: "3:00 PM",
     end: "3:50 PM",
-    importance: "optional",
+    importance: "must-do",
   },
   {
     day: "Sunday",
@@ -843,20 +843,27 @@ function layoutEvents(events) {
 function buildTimelineGroups(day, filters) {
   return splitOverlapGroups(enrichEvents(day, filters)).map((events, index) => {
     const visibleEventIds = new Set();
+    const selectedVisibleEvents = [];
     const hiddenGroups = splitStartTimeGroups(events).flatMap((startGroup, startIndex) => {
+      const activeVisibleEvents = selectedVisibleEvents.filter(
+        (event) => event.endMinutes > startGroup[0].startMinutes,
+      );
       const visiblePlannedEvents = startGroup.filter(
         (event) => event.importance !== "happening",
       );
       const visibleHappeningEvents =
-        visiblePlannedEvents.length >= 2
-          ? []
-          : startGroup
-              .filter((event) => event.importance === "happening")
-              .slice(0, Math.max(0, 2 - visiblePlannedEvents.length));
+        startGroup
+          .filter((event) => event.importance === "happening")
+          .slice(
+            0,
+            Math.max(0, 2 - activeVisibleEvents.length - visiblePlannedEvents.length),
+          );
+      const startGroupVisibleEvents = [...visiblePlannedEvents, ...visibleHappeningEvents];
 
-      [...visiblePlannedEvents, ...visibleHappeningEvents].forEach((event) => {
+      startGroupVisibleEvents.forEach((event) => {
         visibleEventIds.add(event.id);
       });
+      selectedVisibleEvents.push(...startGroupVisibleEvents);
 
       const hiddenHappeningEvents = startGroup.filter(
         (event) =>
